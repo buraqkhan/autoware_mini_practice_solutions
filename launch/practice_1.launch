@@ -1,0 +1,9 @@
+<launch>
+    <node pkg="autoware_mini_practice_solutions" name="publisher_1" type="publisher.py" output="screen" required="true">
+     <param name="message"   value="Hello ROS!" />
+     <param name="rate" type="int" value="2"/> </node>
+    <node pkg="autoware_mini_practice_solutions" name="publisher_2" type="publisher.py" output="screen" required="true">
+     <param name="message"   value="Buraq Khan" />
+     <param name="rate" type="int" value="10"/> </node>
+    <node pkg="autoware_mini_practice_solutions" name="subscriber" type="subscriber.py" output="screen" required="true"/>
+</launch>
