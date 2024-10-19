@@ -28,6 +28,8 @@ class PurePursuitFollower:
         rospy.Subscriber('/localization/current_pose', PoseStamped, self.current_pose_callback, queue_size=1)
 
     def path_callback(self, msg):
+        if msg.waypoints == None or len(msg.waypoints) < 2:
+            return
         # convert waypoints to shapely linestring
         self.path = LineString([(w.pose.pose.position.x, w.pose.pose.position.y) for w in msg.waypoints])
         # prepare path - creates spatial tree, making the spatial queries more efficient
