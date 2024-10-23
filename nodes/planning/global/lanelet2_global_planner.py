@@ -8,6 +8,8 @@ from lanelet2.projection import UtmProjector
 from lanelet2.core import BasicPoint2d
 from lanelet2.geometry import findNearest
 
+from shapely.geometry import Point, LineString
+
 from geometry_msgs.msg import PoseStamped
 from autoware_msgs.msg import Lane, Waypoint
 
@@ -62,12 +64,25 @@ class Lanelet2GlobalPlanner:
                 print("No path w/o lane change")
                 return
             
-            waypoints = self.lanelet_2_waypoint(path_no_lane_change)
+            projected_goal, goal_distance = self.goal_projection(path_no_lane_change[-1].centerline, self.goal_point)
+
+            waypoints = self.lanelet_2_waypoint(path_no_lane_change, projected_goal, goal_distance)
             self.publish_global(waypoints)
 
         except:
             rospy.logwarn("No route found")
 
+    def goal_projection(self, goal_point, lanelet):
+        coordinates = [(point.x, point.y) for point in lanelet]
+        line = LineString(coordinates)
+
+        goal = Point(goal_point.x, goal_point.y)
+
+        projected_dist = line.project(goal)
+        projected_point = line.interpolate(projected_dist)
+        distance = line.project(projected_point)
+        
+        return BasicPoint2d(projected_point.x, projected_point.y), distance 
 
     def goal_point_callback(self, msg):
         # loginfo message about receiving the goal point
@@ -104,18 +119,25 @@ class Lanelet2GlobalPlanner:
 
         self.waypoints_pub.publish(lane)
 
-    def lanelet_2_waypoint(self, lanelet_path):
+    def lanelet_2_waypoint(self, lanelet_path, projected_goal, goal_distance):
         waypoints = []
 
         for lanelet in lanelet_path:
             if "speed_ref" in lanelet.attributes:
-                speed = float(lanelet.attributes['speed_ref'])
+                speed = float(lanelet.attributes['speed_ref']) * 1000/3600
             else:
                 speed = self.speed_limit * 1000/3600
 
+            line = LineString([(point.x, point.y) for point in lanelet.centerline])
             for i, point in enumerate(lanelet.centerline):
                 if i == 0 and len(waypoints) > 0:
                     continue
+                
+                distance_travelled = line.project(Point(point.x, point.y))
+
+                if distance_travelled >= goal_distance:
+                    rospy.loginfo("Reached goal point")
+                    break
 
                 waypoint = Waypoint()
                 waypoint.pose.pose.position.x = point.x
@@ -124,6 +146,14 @@ class Lanelet2GlobalPlanner:
                 waypoint.twist.twist.linear.x = speed
 
                 waypoints.append(waypoint)
+
+        if projected_goal is not None:
+            # Append last goal waypoint
+            waypoint = Waypoint()
+            waypoint.pose.pose.position.x = projected_goal.x
+            waypoint.pose.pose.position.y = projected_goal.y
+            waypoint.pose.pose.position.z = 0.0
+            waypoint.append(waypoint)
 
         return waypoints       
 
