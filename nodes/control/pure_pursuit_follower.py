@@ -20,6 +20,8 @@ class PurePursuitFollower:
         self.path = None
         self.distance_to_velocity_interpolator = None
 
+        self.stop = False
+
         # Publishers
         self.vehicle_cmd_pub = rospy.Publisher("/control/vehicle_cmd", VehicleCmd, queue_size=1)
 
@@ -29,6 +31,7 @@ class PurePursuitFollower:
 
     def path_callback(self, msg):
         if msg.waypoints == None or len(msg.waypoints) < 2:
+            self.stop = True
             return
         # convert waypoints to shapely linestring
         self.path = LineString([(w.pose.pose.position.x, w.pose.pose.position.y) for w in msg.waypoints])
@@ -45,6 +48,9 @@ class PurePursuitFollower:
         self.distance_to_velocity_interpolator = interp1d(distances, velocities, kind='linear', bounds_error=False, fill_value=0.0)
 
     def current_pose_callback(self, msg):
+        if self.stop:
+            self.set_stationary(msg)
+            return
         if self.path == None or self.distance_to_velocity_interpolator == None:
             return
         
@@ -71,6 +77,13 @@ class PurePursuitFollower:
         vehicle_cmd.header.frame_id = "base_link"
         self.vehicle_cmd_pub.publish(vehicle_cmd)
         
+    def set_stationary(self, msg):
+        stationary_msg = VehicleCmd()
+        stationary_msg.header.stamp = msg.header.stamp
+        stationary_msg.header.frame_id = "base_link"
+        stationary_msg.ctrl_cmd.steering_angle = 0.0
+        stationary_msg.ctrl_cmd.linear_velocity = 0.0
+        self.vehicle_cmd_pub.publish(stationary_msg)
 
     def run(self):
         rospy.spin()
