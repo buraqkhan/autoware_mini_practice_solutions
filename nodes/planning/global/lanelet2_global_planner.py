@@ -72,7 +72,7 @@ class Lanelet2GlobalPlanner:
         except:
             rospy.logwarn("No route found")
 
-    def goal_projection(self, goal_point, lanelet):
+    def goal_projection(self, lanelet, goal_point):
         coordinates = [(point.x, point.y) for point in lanelet]
         line = LineString(coordinates)
 
@@ -81,7 +81,7 @@ class Lanelet2GlobalPlanner:
         projected_dist = line.project(goal)
         projected_point = line.interpolate(projected_dist)
         distance = line.project(projected_point)
-        
+
         return BasicPoint2d(projected_point.x, projected_point.y), distance 
 
     def goal_point_callback(self, msg):
@@ -153,7 +153,8 @@ class Lanelet2GlobalPlanner:
             waypoint.pose.pose.position.x = projected_goal.x
             waypoint.pose.pose.position.y = projected_goal.y
             waypoint.pose.pose.position.z = 0.0
-            waypoint.append(waypoint)
+
+            waypoints.append(waypoint)
 
         return waypoints       
 
