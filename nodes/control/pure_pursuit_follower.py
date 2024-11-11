@@ -33,6 +33,7 @@ class PurePursuitFollower:
         if msg.waypoints == None or len(msg.waypoints) < 2:
             self.stop = True
             return
+        self.stop = False
         # convert waypoints to shapely linestring
         self.path = LineString([(w.pose.pose.position.x, w.pose.pose.position.y) for w in msg.waypoints])
         # prepare path - creates spatial tree, making the spatial queries more efficient
